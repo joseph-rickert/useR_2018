@@ -1,0 +1,75 @@
+---
+title: "Stan Logistic Regression"
+output: html_notebook
+---
+```r
+# The Stan model in the file nes_logit.stan
+data {
+  int<lower=0> N;
+  vector[N] income;
+  int<lower=0,upper=1> vote[N];
+}
+parameters {vector[2] beta;}
+model {vote ~ bernoulli_logit(beta[1] + beta[2] * income);}
+```  
+Set up and run the model.
+```r
+library(rstan)
+library(ggplot2)
+
+### Data
+source("nes1992_vote.data.R", echo = TRUE)
+
+### Logistic model: vote ~ income
+data.list <- c("N", "vote", "income")
+nes_logit.sf <- stan(file='nes_logit.stan', data=data.list,iter=1000, chains=2)
+```  
+```{r,warning=FALSE,message=FALSE,include=FALSE}
+library(rstan)
+library(ggplot2)
+### Data
+source("nes1992_vote.data.R", echo = TRUE)
+### Logistic model: vote ~ income
+data.list <- c("N", "vote", "income")
+nes_logit.sf <- stan(file='nes_logit.stan', data=data.list,
+                     iter=1000, chains=2)
+```  
+Show the results
+```{r} 
+print(nes_logit.sf, pars = c("beta", "lp__"))
+```
+
+```{r,include=FALSE}
+### Figures
+
+beta.post <- extract(nes_logit.sf, "beta")$beta
+beta.mean <- colMeans(beta.post)
+
+# Figure 5.1 (a)
+
+len <- 20
+x <- seq(1, 5, length.out = len)
+y <- 1 / (1 + exp(- beta.mean[1] - beta.mean[2] * x))
+nes_vote.ggdf.1 <- data.frame(x, y)
+
+p1 <- ggplot(data.frame(income, vote), aes(x = income, y = vote)) +
+  geom_jitter(position = position_jitter(height = 0.04, width = 0.4)) +
+  geom_line(aes(x, y), data = nes_vote.ggdf.1, size = 2) +
+  stat_function(fun = function(x)
+    1 / (1 + exp(- beta.mean[1] - beta.mean[2] * x))) +
+  scale_x_continuous("Income", limits = c(-2, 8), breaks = seq(1, 5),
+                     labels = c("1\n(poor)", "2", "3", "4", "5\n(rich)")) +
+  scale_y_continuous("Pr(Republican Vote)", limits = c(-0.05, 1.05),
+                     breaks = seq(0, 1, 0.2))
+``` 
+
+```{r,echo=FALSE}
+p1
+```     
+
+
+
+
+
+
+
