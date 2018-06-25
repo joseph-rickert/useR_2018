@@ -1,5 +1,5 @@
 ---
-title: "TF_Keras"
+title: "TensorFlow with Keras"
 output:
   html_document:
     df_print: paged
@@ -76,7 +76,7 @@ The result is that both x_train and x_test are `tensors` of `shape` (60000L, 784
 
 In Keras, data is organized into layers. The core data structure, which is a collection of layers, is called a model. The simplest type of model is the sequential model which is a linear stack of layers.
 
-We begin by creating a sequential model using the sequential model constructor `keras_model_sequential` and then adding layers using the pipe `%>%` operator and various functions to describe the layers. 
+We begin by creating a sequential model using the model constructor `keras_model_sequential` and then add layers using the pipe `%>%` operator and various functions to describe the layers. 
 
 * `layer_dense()` adds a densely-connected NN layer. 
 * The `units` argument defines the dimension of the output space. 
@@ -85,7 +85,7 @@ We begin by creating a sequential model using the sequential model constructor `
 * 784 is the length of the grayscale image. 
 * Specifying a `layer_dropout()` rate of 0.4 means that 40% of the units will randomly be set to 0 during the training. This is a technique to prevent overfitting. 
 
-The final layer outputs a length 10 numeric vector (probabilities for each digit) using a [softmax activation](https://en.wikipedia.org/wiki/Softmax_function) function. Look [here](https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions) for a nice summary of the `relu` and `softmax` actvation functions.
+The final layer outputs a length 10 numeric vector (probabilities for each digit) using a [softmax activation](https://en.wikipedia.org/wiki/Softmax_function) function. Look [here](https://github.com/Kulbear/deep-learning-nano-foundation/wiki/ReLU-and-Softmax-Activation-Functions) for a nice summary of the `relu` and `softmax` activation functions.
 
 ```{r}
 model <- keras_model_sequential() 
