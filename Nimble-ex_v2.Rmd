@@ -1,0 +1,188 @@
+---
+title: "NIMBLE Example"
+output: html_notebook
+---
+
+This notebook presents an abbreviated reworking of the Pump Failure model presented in Chapter 2 of the [NIMBLE Manual](https://r-nimble.org/manuals/NimbleUserManual.pdf). Note that although [NIMBLE](https://r-nimble.org/) is an R package, listed on CRAN, that installs like any other R package, you must have a C++ compiler and the standard `make` utility installed on your system before installing NIMBLE. See Chapter 4 of the manual for platform-specific installation instructions
+
+### Pump Failure Model
+The Pump Failure model is dsicussed by George et al. 
+in their 1993 paper: [Conjugate Likelihood Distributions](https://www.jstor.org/stable/4616270?seq=1#page_scan_tab_contents). The paper examines Bayesian models that use conjugate priors, but which do not have closed form solutions when prior distributions are associated with the hyperparameters. The [BUGS](http://www.openbugs.net/w/FrontPage) solution of the problem is given [here](http://www.openbugs.net/Examples/Pumps.html).
+
+
+The data driving the model are: `x[i]` the number of failures for pump `i` in a time interval `t[i]` where `i` goes from 1 to 10.
+
+```{r}
+library(nimble)
+library(igraph)
+library(tidyverse)
+
+pumpConsts <- list(N = 10,
+t = c(94.3, 15.7, 62.9, 126, 5.24,31.4, 1.05, 1.05, 2.1, 10.5))
+
+pumpData <- list(x = c(5, 1, 5, 14, 3, 19, 1, 1, 4, 22))
+
+```
+
+Arrival times as a Poisson distribution with parameter `lambda` where `lambda` is itself modeled as a Gamma distribution with hyperparameters `alpha` and `beta`.
+
+The model is expressed in the `BUGS` language wrapped inside the NIMBLE function `nimbleCode()` which turns the `BUGS` code into a object that can be operated on by `nimbleModel()`
+
+```{r}
+pumpCode <- nimbleCode(
+  {
+for (i in 1:N){
+  theta[i] ~ dgamma(alpha,beta)
+  lambda[i] <- theta[i]*t[i]
+  x[i] ~ dpois(lambda[i])
+  }
+alpha ~ dexp(1.0)
+beta ~ dgamma(0.1,1.0)
+})
+
+pumpInits <- list(alpha = 1, beta = 1,
+theta = rep(0.1, pumpConsts$N))
+
+```
+
+`nimbleModel()` produces the model object that can be executed by `R` or compiled.
+
+```{r}
+pump <- nimbleModel(code = pumpCode, name = "pump", constants = pumpConsts,
+                    data = pumpData, inits = pumpInits)
+```
+
+The following command lets us look at the nodes that comprise the model's directed graph and plot it.
+
+```{r}
+pump$getNodeNames()
+```
+
+```{r}
+pump$plotGraph()
+```
+
+
+We can look at the values stored at each node. The node for `x` contains the initial values we entered into the model and the nodes for `theta` and `lambda` contain the initial calculated values
+
+```{r}
+pump$x
+```
+
+
+```{r}
+pump$theta
+```
+
+```{r}
+pump$lambda
+```
+
+We can also look at the log probabilities of the likelihoods.
+
+```{r}
+pump$logProb_x
+```
+
+Next, we use the model to simulate new values for `theta` and update the variables.
+
+```{r}
+set.seed(1)
+pump$simulate("theta")
+pump$theta
+```
+
+These new values will, of course, lead to new values of `lambda` and the log probabilities.
+
+```{r}
+pump$lambda
+```
+
+```{r}
+pump$logProb_x
+```
+
+We can also compile the model. The C++ code generated is loaded back into R with an object that can be examined like the uncompiled model. 
+
+```{r}
+Cpump <- compileNimble(pump)
+Cpump$theta
+```
+
+
+Now, we use the default NIMBLE MCMC algorithm to generate posterior samples from the distributions for the model parameters `alpha`, `beta`, `theta` and `lambda` along with summary statistics, and the value of Wantanabi's [WAIC](https://www.rdocumentation.org/packages/LaplacesDemon/versions/16.1.0/topics/WAIC) statistic. 
+
+```{r}
+mcmc.out <- nimbleMCMC(code = pumpCode, constants = pumpConsts,
+                       data = pumpData, inits = pumpInits,
+                       monitors=c("alpha","beta","theta","lambda"),
+                       nchains = 2, niter = 10000,
+                       summary = TRUE, WAIC = TRUE)
+names(mcmc.out)
+```
+
+
+```{r}
+mcmc.out$summary
+```
+
+```{r}
+mcmc.out$WAI
+
+```
+
+Here, we select sample values for the parameters for pump 1 in the first chain and put them into a data frame for plotting.
+```{r}
+df <- data.frame(mcmc.out$samples$chain1)
+df_l <- df %>% select(alpha, beta, theta.1., lambda.1.) %>% gather(key="parameter", value="value")
+``` 
+
+We plot the sample values.
+```{r}
+ps <- df_l %>% ggplot(aes(x=seq_along(value), y = value)) + geom_line()
+ps + facet_wrap(~parameter, scales = "free")
+
+```
+
+And, we plot histograms.
+```{r}
+p <- ggplot(df_l,aes(value)) + geom_histogram(aes( y= ..density..),bins = 60) 
+p + facet_wrap(~parameter, scales = "free")
+               
+```
+
+
+Note that it is also possible to perform the MCMC simulation using the compiled model.
+
+
+```{r}
+mcmc.out_c<- nimbleMCMC(model=Cpump,
+                       monitors=c("alpha","beta","theta","lambda"),
+                       nchains = 2, niter = 10000,
+                       summary = TRUE, WAIC = TRUE)
+```
+
+```{r}
+mcmc.out_c$summary
+```
+
+### Monte Carlo Expectation Analysis   
+
+Finally, to illustrate that NIMBLE is more than just an MCMC engine we NIMBLE's built-in Monte Carlo Expectation algorithm to maxime the marginal likelihood for `alpha` and `beta`. First, we create a new model and set up the "box constraints". Then, the `buildMCEM()` function is used to construct an MCEM algorithm from a NIMBLE model.
+
+```{r}
+pump2 <- pump$newModel()
+box = list( list(c("alpha","beta"), c(0, Inf)))
+pumpMCEM <- buildMCEM(model = pump2, latentNodes = "theta[1:10]", boxConstraints = box)
+```  
+
+Now, we run the model.
+
+```{r}
+pumpMLE <- pumpMCEM$run()
+```
+
+The authors of the NIMBLE manual point out that these results are within 0.01 of the values obtained by Geroge et al..
+
+
+
