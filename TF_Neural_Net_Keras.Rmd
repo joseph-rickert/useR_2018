@@ -6,9 +6,9 @@ output:
 ---
 
 ## Keras
-[Keras](https://keras.io/) is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), or [Theano](https://github.com/Theano/Theano) written in Python. Additional features of Keras are that it:
+[Keras](https://keras.io/) is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), or [Theano](https://github.com/Theano/Theano). Additional features of Keras are that it:
 
-* Allows the same code to run on CPU or on GPU, seamlessly
+* Allows the same code to run on CPU or on GPU
 * Provides an API that makes it relatively easy to prototype deep learning models   
 * Has support built-in for combinations of convolutional networks (for computer vision) and recurrent networks (for sequence processing)    
 * Supports arbitrary network architectures: multi-input or multi-output models, layer sharing, model sharing, etc. 
@@ -31,7 +31,7 @@ Next, we load the [MNIST](https://en.wikipedia.org/wiki/MNIST_database) data set
 
 ![](MNIST.png)
 
-The data set also includes labels for each image, telling us which digit it is. For example, the labels for the above images are 5, 0, 4, and 1. Each image is 28 pixels by 28 pixels and is stored as an array of numbers.
+The data set also includes labels for each image which tell which digit it represents. For example, the labels for the above images are 5, 0, 4, and 1. Each image is 28 pixels by 28 pixels and is stored as an array of numbers.
 
 ![](image.png)
 
